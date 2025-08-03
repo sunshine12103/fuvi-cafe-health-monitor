@@ -27,7 +27,7 @@
             border-radius: 15px;
             box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
             width: 100%;
-            max-width: 500px;
+            max-width: 1200px;
         }
         
         .header {
@@ -158,9 +158,29 @@
         }
         
         .search-section {
-            margin-top: 40px;
-            padding-top: 30px;
-            border-top: 2px solid #e1e1e1;
+            margin-top: 0;
+            padding-top: 0;
+            border-top: none;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+        }
+        
+        .form-section {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 12px;
+            border: 2px solid #e1e1e1;
+        }
+        
+        .search-section {
+            background: #f1f8ff;
+            padding: 30px;
+            border-radius: 12px;
+            border: 2px solid #d1ecf1;
         }
         
         .search-result {
@@ -174,14 +194,14 @@
         
         .result-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
             margin-top: 15px;
         }
         
         .result-item {
             background: white;
-            padding: 15px;
+            padding: 12px;
             border-radius: 8px;
             text-align: center;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
@@ -189,12 +209,12 @@
         
         .result-item h4 {
             color: #667eea;
-            margin-bottom: 8px;
-            font-size: 14px;
+            margin-bottom: 6px;
+            font-size: 12px;
         }
         
         .result-item .value {
-            font-size: 20px;
+            font-size: 16px;
             font-weight: bold;
             color: #333;
         }
@@ -217,8 +237,20 @@
                 padding: 30px 20px;
             }
             
-            .result-grid {
+            .main-content {
                 grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .result-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (max-width: 900px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                gap: 20px;
             }
         }
     </style>
@@ -227,114 +259,124 @@
     <div class="container">
         <div class="header">
             <h1>🏥 FUVI CAFE</h1>
-            <p>Health Monitor - Thông tin cá nhân</p>
+            <p>Health Monitor - Quản lý thông tin sức khỏe</p>
         </div>
         
-        <form id="healthForm">
-            <div class="form-group">
-                <label for="id">ID <span class="required">*</span></label>
-                <input type="text" id="id" name="id" placeholder="Nhập ID" required>
+        <div class="main-content">
+            <!-- Form Section -->
+            <div class="form-section">
+                <div class="header">
+                    <h2>💾 Lưu thông tin cá nhân</h2>
+                    <p>Nhập thông tin để lưu vào hệ thống</p>
+                </div>
+                
+                <form id="healthForm">
+                    <div class="form-group">
+                        <label for="id">ID <span class="required">*</span></label>
+                        <input type="text" id="id" name="id" placeholder="Nhập ID" required>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="weight">Cân nặng (kg) <span class="required">*</span></label>
+                            <input type="number" id="weight" name="weight" min="1" max="200" step="0.1" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="height">Chiều cao (cm) <span class="required">*</span></label>
+                            <input type="number" id="height" name="height" min="1" max="250" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="age">Tuổi <span class="required">*</span></label>
+                            <input type="number" id="age" name="age" min="1" max="120" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Giới tính <span class="required">*</span></label>
+                            <div class="gender-group">
+                                <div class="radio-option">
+                                    <input type="radio" id="male" name="gender" value="Nam" required>
+                                    <label for="male">Nam</label>
+                                </div>
+                                <div class="radio-option">
+                                    <input type="radio" id="female" name="gender" value="Nữ" required>
+                                    <label for="female">Nữ</label>
+                                </div>
+                                <div class="radio-option">
+                                    <input type="radio" id="other" name="gender" value="Khác" required>
+                                    <label for="other">Khác</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="submit-btn" id="submitBtn">
+                        💾 Lưu thông tin cá nhân
+                    </button>
+                </form>
             </div>
             
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="weight">Cân nặng (kg) <span class="required">*</span></label>
-                    <input type="number" id="weight" name="weight" min="1" max="200" step="0.1" required>
+            <!-- Search Section -->
+            <div class="search-section">
+                <div class="header">
+                    <h2>🔍 Tra cứu thông tin theo ID</h2>
+                    <p>Nhập ID để xem thông tin sức khỏe</p>
                 </div>
                 
                 <div class="form-group">
-                    <label for="height">Chiều cao (cm) <span class="required">*</span></label>
-                    <input type="number" id="height" name="height" min="1" max="250" required>
-                </div>
-            </div>
-            
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="age">Tuổi <span class="required">*</span></label>
-                    <input type="number" id="age" name="age" min="1" max="120" required>
+                    <label for="searchId">ID cần tra cứu</label>
+                    <input type="text" id="searchId" name="searchId" placeholder="Nhập ID để tra cứu">
                 </div>
                 
-                <div class="form-group">
-                    <label>Giới tính <span class="required">*</span></label>
-                    <div class="gender-group">
-                        <div class="radio-option">
-                            <input type="radio" id="male" name="gender" value="Nam" required>
-                            <label for="male">Nam</label>
+                <button type="button" class="submit-btn search-btn" id="searchBtn">
+                    🔍 Tra cứu thông tin
+                </button>
+                
+                <div id="searchResult" class="search-result">
+                    <h3>📊 Thông tin ID: <span id="resultId"></span></h3>
+                    <div class="result-grid">
+                        <div class="result-item">
+                            <h4>❤️ Nhịp tim</h4>
+                            <div class="value" id="heartRate">-- bpm</div>
                         </div>
-                        <div class="radio-option">
-                            <input type="radio" id="female" name="gender" value="Nữ" required>
-                            <label for="female">Nữ</label>
+                        <div class="result-item">
+                            <h4>🫁 Nhịp thở</h4>
+                            <div class="value" id="breathRate">-- rpm</div>
                         </div>
-                        <div class="radio-option">
-                            <input type="radio" id="other" name="gender" value="Khác" required>
-                            <label for="other">Khác</label>
+                        <div class="result-item">
+                            <h4>📏 Chiều cao</h4>
+                            <div class="value" id="displayHeight">-- cm</div>
+                        </div>
+                        <div class="result-item">
+                            <h4>⚖️ Cân nặng</h4>
+                            <div class="value" id="displayWeight">-- kg</div>
+                        </div>
+                        <div class="result-item">
+                            <h4>👤 Giới tính</h4>
+                            <div class="value" id="displayGender">--</div>
+                        </div>
+                        <div class="result-item">
+                            <h4>🎂 Tuổi</h4>
+                            <div class="value" id="displayAge">-- tuổi</div>
+                        </div>
+                        <div class="result-item">
+                            <h4>📊 BMI</h4>
+                            <div class="value" id="displayBMI">--</div>
                         </div>
                     </div>
                 </div>
             </div>
-            
-            <button type="submit" class="submit-btn" id="submitBtn">
-                💾 Lưu thông tin cá nhân
-            </button>
-        </form>
+        </div>
         
         <div id="status" class="status"></div>
-        
-        <!-- Search Section -->
-        <div class="search-section">
-            <div class="header">
-                <h2>🔍 Tra cứu thông tin theo ID</h2>
-                <p>Nhập ID để xem thông tin sức khỏe</p>
-            </div>
-            
-            <div class="form-group">
-                <label for="searchId">ID cần tra cứu</label>
-                <input type="text" id="searchId" name="searchId" placeholder="Nhập ID để tra cứu">
-            </div>
-            
-            <button type="button" class="submit-btn search-btn" id="searchBtn">
-                🔍 Tra cứu thông tin
-            </button>
-            
-            <div id="searchResult" class="search-result">
-                <h3>📊 Thông tin ID: <span id="resultId"></span></h3>
-                <div class="result-grid">
-                    <div class="result-item">
-                        <h4>❤️ Nhịp tim</h4>
-                        <div class="value" id="heartRate">-- bpm</div>
-                    </div>
-                    <div class="result-item">
-                        <h4>🫁 Nhịp thở</h4>
-                        <div class="value" id="breathRate">-- rpm</div>
-                    </div>
-                    <div class="result-item">
-                        <h4>📏 Chiều cao</h4>
-                        <div class="value" id="displayHeight">-- cm</div>
-                    </div>
-                    <div class="result-item">
-                        <h4>⚖️ Cân nặng</h4>
-                        <div class="value" id="displayWeight">-- kg</div>
-                    </div>
-                    <div class="result-item">
-                        <h4>👤 Giới tính</h4>
-                        <div class="value" id="displayGender">--</div>
-                    </div>
-                    <div class="result-item">
-                        <h4>🎂 Tuổi</h4>
-                        <div class="value" id="displayAge">-- tuổi</div>
-                    </div>
-                    <div class="result-item">
-                        <h4>📊 BMI</h4>
-                        <div class="value" id="displayBMI">--</div>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 
     <script>
         // Thay đổi URL này thành URL Google Apps Script của bạn
-        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyEoBKnGUIRoWQeyk5uPRq3ZGHzXfAOuouthOM7boVF-ptC14UtepPWx-kKY4_d-ckF/exec';
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyjAnwceF1MaRDF6Q_wc-HPjr0Hx33L4Sb_NyGLWPjYMXrW36jXypg2MvP1GIaGKpwE-g/exec';
         
         document.getElementById('healthForm').addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -480,15 +522,23 @@
                 if (result.includes('not found') || result.includes('No data')) {
                     showStatus('error', `❌ Không tìm thấy dữ liệu cho ID: ${searchId}`);
                     searchResult.style.display = 'none';
+                } else if (result.includes('Error') || result.includes('Chưa cấu hình')) {
+                    showStatus('error', `❌ Lỗi Google Apps Script: ${result}`);
+                    searchResult.style.display = 'none';
                 } else {
                     // Parse the result (expecting JSON format)
                     let data;
                     try {
                         data = JSON.parse(result);
                     } catch (e) {
-                        // If not JSON, try to parse as simple format
-                        console.log('Not JSON format, trying simple parse');
-                        showStatus('error', '❌ Dữ liệu không đúng định dạng');
+                        // If not JSON, check if it's a simple text response
+                        console.log('Not JSON format, result:', result);
+                        if (result.includes('Health Monitor API is running')) {
+                            showStatus('error', '❌ Google Apps Script chưa được cập nhật! Vui lòng deploy phiên bản mới có chức năng search.');
+                        } else {
+                            showStatus('error', '❌ Dữ liệu không đúng định dạng. Kiểm tra Google Apps Script.');
+                        }
+                        searchResult.style.display = 'none';
                         return;
                     }
                     
