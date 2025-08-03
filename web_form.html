@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FUVI CAFE - Health Monitor Input</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 500px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            color: #666;
+            font-size: 16px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e1e1e1;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .gender-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 8px;
+        }
+        
+        .radio-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+        
+        .radio-option input[type="radio"] {
+            width: auto;
+            margin: 0;
+        }
+        
+        .submit-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+        }
+        
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+        
+        .submit-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
+            display: none;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.loading {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .required {
+            color: red;
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 15px;
+        }
+        
+        .form-row .form-group {
+            flex: 1;
+        }
+        
+        @media (max-width: 600px) {
+            .form-row {
+                flex-direction: column;
+                gap: 0;
+            }
+            
+            .container {
+                padding: 30px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏥 FUVI CAFE</h1>
+            <p>Health Monitor - Thông tin cá nhân</p>
+        </div>
+        
+        <form id="healthForm">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="weight">Cân nặng (kg) <span class="required">*</span></label>
+                    <input type="number" id="weight" name="weight" min="20" max="200" step="0.1" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="height">Chiều cao (cm) <span class="required">*</span></label>
+                    <input type="number" id="height" name="height" min="100" max="250" required>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="age">Tuổi <span class="required">*</span></label>
+                    <input type="number" id="age" name="age" min="1" max="120" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Giới tính <span class="required">*</span></label>
+                    <div class="gender-group">
+                        <div class="radio-option">
+                            <input type="radio" id="male" name="gender" value="Nam" required>
+                            <label for="male">Nam</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="female" name="gender" value="Nữ" required>
+                            <label for="female">Nữ</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="other" name="gender" value="Khác" required>
+                            <label for="other">Khác</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="name">Họ và tên (tùy chọn)</label>
+                <input type="text" id="name" name="name" placeholder="Nhập họ và tên...">
+            </div>
+            
+            <button type="submit" class="submit-btn" id="submitBtn">
+                📊 Gửi thông tin
+            </button>
+            
+            <button type="button" class="submit-btn" id="testBtn" style="margin-top: 10px; background: #28a745;">
+                🔧 Test kết nối Google Sheets
+            </button>
+        </form>
+        
+        <div id="status" class="status"></div>
+    </div>
+
+    <script>
+        // Thay đổi URL này thành URL Google Apps Script của bạn
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyiQNh-PWG748HYIsM9RSl_EQmw7gqicVOsGLTBolvMHJWOeGriA_3KMCnhaf8Mo-prKw/exec';
+        
+        document.getElementById('healthForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const submitBtn = document.getElementById('submitBtn');
+            const status = document.getElementById('status');
+            
+            // Disable button and show loading
+            submitBtn.disabled = true;
+            submitBtn.textContent = '⏳ Đang gửi...';
+            showStatus('loading', 'Đang gửi dữ liệu...');
+            
+            // Get form data
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData);
+            
+            // Validate data
+            if (!data.weight || !data.height || !data.age || !data.gender) {
+                showStatus('error', '❌ Vui lòng điền đầy đủ thông tin bắt buộc');
+                submitBtn.disabled = false;
+                submitBtn.textContent = '📊 Gửi thông tin';
+                return;
+            }
+            
+            // Calculate BMI
+            const weight = parseFloat(data.weight);
+            const height = parseFloat(data.height) / 100; // convert cm to m
+            
+            if (isNaN(weight) || isNaN(height) || weight <= 0 || height <= 0) {
+                showStatus('error', '❌ Cân nặng và chiều cao không hợp lệ');
+                submitBtn.disabled = false;
+                submitBtn.textContent = '📊 Gửi thông tin';
+                return;
+            }
+            
+            const bmi = (weight / (height * height)).toFixed(2);
+            
+            // Add calculated fields
+            data.bmi = bmi;
+            data.timestamp = new Date().toLocaleString('vi-VN', {
+                timeZone: 'Asia/Ho_Chi_Minh',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            data.type = 'personal_info'; // Phân biệt với dữ liệu từ ESP32
+            
+            // Debug: Log data being sent
+            console.log('Sending data:', data);
+            console.log('URL:', GOOGLE_SCRIPT_URL);
+            
+            try {
+                // Test URL first
+                console.log('Testing connection to Google Apps Script...');
+                
+                // Send to Google Sheets with timeout
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+                
+                const response = await fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams(data),
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                console.log('Response status:', response.status);
+                console.log('Response ok:', response.ok);
+                
+                const result = await response.text();
+                console.log('Response body:', result);
+                
+                if (response.ok) {
+                    if (result.includes('Success') || result.includes('added')) {
+                        showStatus('success', `✅ Gửi thành công! BMI của bạn: ${bmi}`);
+                        this.reset(); // Clear form
+                        
+                        // Auto hide success message after 5 seconds
+                        setTimeout(() => {
+                            hideStatus();
+                        }, 5000);
+                    } else if (result.includes('Error')) {
+                        throw new Error('Google Apps Script Error: ' + result);
+                    } else {
+                        // Sometimes Google returns HTML instead of our expected text
+                        showStatus('success', `✅ Dữ liệu đã được gửi! BMI của bạn: ${bmi}`);
+                        this.reset();
+                        setTimeout(() => hideStatus(), 5000);
+                    }
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText} - ${result}`);
+                }
+                
+            } catch (error) {
+                console.error('Error details:', error);
+                
+                let errorMessage = '❌ Lỗi: ';
+                
+                if (error.name === 'AbortError') {
+                    errorMessage += 'Timeout - Quá thời gian chờ. Vui lòng thử lại.';
+                } else if (error.message.includes('Failed to fetch')) {
+                    errorMessage += 'Không thể kết nối. Kiểm tra kết nối internet và URL Google Apps Script.';
+                } else if (error.message.includes('CORS')) {
+                    errorMessage += 'Lỗi CORS. Kiểm tra cấu hình Google Apps Script.';
+                } else if (error.message.includes('HTTP')) {
+                    errorMessage += error.message;
+                } else {
+                    errorMessage += error.message || 'Không thể gửi dữ liệu. Vui lòng thử lại.';
+                }
+                
+                showStatus('error', errorMessage);
+            } finally {
+                // Re-enable button
+                submitBtn.disabled = false;
+                submitBtn.textContent = '📊 Gửi thông tin';
+            }
+        });
+        
+        // Test connection button
+        document.getElementById('testBtn').addEventListener('click', async function() {
+            const testBtn = this;
+            const originalText = testBtn.textContent;
+            
+            testBtn.disabled = true;
+            testBtn.textContent = '⏳ Đang test...';
+            showStatus('loading', 'Đang kiểm tra kết nối...');
+            
+            try {
+                console.log('Testing GET request to:', GOOGLE_SCRIPT_URL);
+                
+                const response = await fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'GET'
+                });
+                
+                console.log('Test response status:', response.status);
+                const result = await response.text();
+                console.log('Test response body:', result);
+                
+                if (response.ok) {
+                    showStatus('success', '✅ Kết nối Google Sheets thành công!');
+                } else {
+                    showStatus('error', `❌ Lỗi kết nối: HTTP ${response.status}`);
+                }
+                
+            } catch (error) {
+                console.error('Test error:', error);
+                showStatus('error', `❌ Lỗi test: ${error.message}`);
+            } finally {
+                testBtn.disabled = false;
+                testBtn.textContent = originalText;
+            }
+        });
+        
+        function showStatus(type, message) {
+            const status = document.getElementById('status');
+            status.className = `status ${type}`;
+            status.textContent = message;
+            status.style.display = 'block';
+        }
+        
+        function hideStatus() {
+            const status = document.getElementById('status');
+            status.style.display = 'none';
+        }
+        
+        // Auto-calculate and show BMI preview
+        document.getElementById('weight').addEventListener('input', updateBMIPreview);
+        document.getElementById('height').addEventListener('input', updateBMIPreview);
+        
+        function updateBMIPreview() {
+            const weight = parseFloat(document.getElementById('weight').value);
+            const height = parseFloat(document.getElementById('height').value);
+            
+            if (weight > 0 && height > 0) {
+                const bmi = (weight / Math.pow(height / 100, 2)).toFixed(1);
+                let category = '';
+                
+                if (bmi < 18.5) category = '(Thiếu cân)';
+                else if (bmi < 25) category = '(Bình thường)';
+                else if (bmi < 30) category = '(Thừa cân)';
+                else category = '(Béo phì)';
+                
+                document.getElementById('submitBtn').textContent = `📊 Gửi thông tin (BMI: ${bmi} ${category})`;
+            } else {
+                document.getElementById('submitBtn').textContent = '📊 Gửi thông tin';
+            }
+        }
+    </script>
+</body>
+</html>
