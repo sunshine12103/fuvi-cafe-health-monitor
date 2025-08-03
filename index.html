@@ -157,6 +157,56 @@
             flex: 1;
         }
         
+        .search-section {
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 2px solid #e1e1e1;
+        }
+        
+        .search-result {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            display: none;
+        }
+        
+        .result-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .result-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .result-item h4 {
+            color: #667eea;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .result-item .value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .search-btn {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        }
+        
+        .search-btn:hover {
+            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
+        }
+
         @media (max-width: 600px) {
             .form-row {
                 flex-direction: column;
@@ -165,6 +215,10 @@
             
             .container {
                 padding: 30px 20px;
+            }
+            
+            .result-grid {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -225,11 +279,62 @@
         </form>
         
         <div id="status" class="status"></div>
+        
+        <!-- Search Section -->
+        <div class="search-section">
+            <div class="header">
+                <h2>🔍 Tra cứu thông tin theo ID</h2>
+                <p>Nhập ID để xem thông tin sức khỏe</p>
+            </div>
+            
+            <div class="form-group">
+                <label for="searchId">ID cần tra cứu</label>
+                <input type="text" id="searchId" name="searchId" placeholder="Nhập ID để tra cứu">
+            </div>
+            
+            <button type="button" class="submit-btn search-btn" id="searchBtn">
+                🔍 Tra cứu thông tin
+            </button>
+            
+            <div id="searchResult" class="search-result">
+                <h3>📊 Thông tin ID: <span id="resultId"></span></h3>
+                <div class="result-grid">
+                    <div class="result-item">
+                        <h4>❤️ Nhịp tim</h4>
+                        <div class="value" id="heartRate">-- bpm</div>
+                    </div>
+                    <div class="result-item">
+                        <h4>🫁 Nhịp thở</h4>
+                        <div class="value" id="breathRate">-- rpm</div>
+                    </div>
+                    <div class="result-item">
+                        <h4>📏 Chiều cao</h4>
+                        <div class="value" id="displayHeight">-- cm</div>
+                    </div>
+                    <div class="result-item">
+                        <h4>⚖️ Cân nặng</h4>
+                        <div class="value" id="displayWeight">-- kg</div>
+                    </div>
+                    <div class="result-item">
+                        <h4>👤 Giới tính</h4>
+                        <div class="value" id="displayGender">--</div>
+                    </div>
+                    <div class="result-item">
+                        <h4>🎂 Tuổi</h4>
+                        <div class="value" id="displayAge">-- tuổi</div>
+                    </div>
+                    <div class="result-item">
+                        <h4>📊 BMI</h4>
+                        <div class="value" id="displayBMI">--</div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
         // Thay đổi URL này thành URL Google Apps Script của bạn
-        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxZV8tzEti3zfrCm_tJga1JYeZiPcOE_X6dueTADvGuNQ3t3b6y6oYPwpSrEUvUcQduVg/exec';
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyEoBKnGUIRoWQeyk5uPRq3ZGHzXfAOuouthOM7boVF-ptC14UtepPWx-kKY4_d-ckF/exec';
         
         document.getElementById('healthForm').addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -340,6 +445,85 @@
                 // Re-enable button
                 submitBtn.disabled = false;
                 submitBtn.textContent = '💾 Lưu thông tin cá nhân';
+            }
+        });
+        
+        // Search functionality
+        document.getElementById('searchBtn').addEventListener('click', async function() {
+            const searchId = document.getElementById('searchId').value.trim();
+            const searchBtn = document.getElementById('searchBtn');
+            const searchResult = document.getElementById('searchResult');
+            
+            if (!searchId) {
+                showStatus('error', '❌ Vui lòng nhập ID cần tra cứu');
+                return;
+            }
+            
+            // Disable button and show loading
+            searchBtn.disabled = true;
+            searchBtn.textContent = '⏳ Đang tìm kiếm...';
+            showStatus('loading', 'Đang tra cứu thông tin...');
+            
+            try {
+                // Send search request to Google Apps Script
+                const response = await fetch(GOOGLE_SCRIPT_URL + '?action=search&id=' + encodeURIComponent(searchId), {
+                    method: 'GET'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const result = await response.text();
+                console.log('Search result:', result);
+                
+                if (result.includes('not found') || result.includes('No data')) {
+                    showStatus('error', `❌ Không tìm thấy dữ liệu cho ID: ${searchId}`);
+                    searchResult.style.display = 'none';
+                } else {
+                    // Parse the result (expecting JSON format)
+                    let data;
+                    try {
+                        data = JSON.parse(result);
+                    } catch (e) {
+                        // If not JSON, try to parse as simple format
+                        console.log('Not JSON format, trying simple parse');
+                        showStatus('error', '❌ Dữ liệu không đúng định dạng');
+                        return;
+                    }
+                    
+                    // Display the results
+                    document.getElementById('resultId').textContent = searchId;
+                    document.getElementById('heartRate').textContent = data.heartRate ? data.heartRate + ' bpm' : '-- bpm';
+                    document.getElementById('breathRate').textContent = data.breathRate ? data.breathRate + ' rpm' : '-- rpm';
+                    document.getElementById('displayHeight').textContent = data.height ? data.height + ' cm' : '-- cm';
+                    document.getElementById('displayWeight').textContent = data.weight ? data.weight + ' kg' : '-- kg';
+                    document.getElementById('displayGender').textContent = data.gender || '--';
+                    document.getElementById('displayAge').textContent = data.age ? data.age + ' tuổi' : '-- tuổi';
+                    document.getElementById('displayBMI').textContent = data.bmi || '--';
+                    
+                    searchResult.style.display = 'block';
+                    showStatus('success', `✅ Tìm thấy thông tin cho ID: ${searchId}`);
+                    
+                    // Auto hide success message
+                    setTimeout(() => hideStatus(), 3000);
+                }
+                
+            } catch (error) {
+                console.error('Search error:', error);
+                showStatus('error', '❌ Lỗi khi tra cứu: ' + error.message);
+                searchResult.style.display = 'none';
+            } finally {
+                // Re-enable button
+                searchBtn.disabled = false;
+                searchBtn.textContent = '🔍 Tra cứu thông tin';
+            }
+        });
+        
+        // Allow Enter key to trigger search
+        document.getElementById('searchId').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                document.getElementById('searchBtn').click();
             }
         });
         
