@@ -1,217 +1,826 @@
-import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM
-import json
-import threading
-import time
-import requests
-from datetime import datetime
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-
-model_id = "Sadou/medgemma-4b-it-french-medical-assistant"
-model = AutoModelForCausalLM.from_pretrained(model_id, torch_dtype=torch.bfloat16)
-tokenizer = AutoTokenizer.from_pretrained(model_id)
-
-if tokenizer.pad_token is None:
-    tokenizer.pad_token = tokenizer.eos_token
-
-# Removed MQTT configuration - only using Flask API
-
-# Flask app setup
-app = Flask(__name__)
-CORS(app)
-
-APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzp2CdAXSXMG6BB_bypmG_NRusA-G4mfUgMdP9nlYa8pGofm5PeFzQeRt4Undv6Wco5_A/exec"  
-
-def send_to_google_sheets(data, ai_response):
-    try:
-        payload = {
-            "id": str(data.get("ID", "N/A")),
-            "aiResponse": ai_response.replace("\n", " ").replace('"', "'"),
-            "type": "ai_consultation"
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FUVI CAFE - Health Monitor Input</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
         
-        print(f"🔄 Đang gửi AI response cho ID {payload['id']}...")
-        
-        response = requests.post(APPS_SCRIPT_URL, 
-                               headers={'Content-Type': 'application/x-www-form-urlencoded'},
-                               data=payload, 
-                               timeout=15)
-        
-        if response.status_code == 200:
-            try:
-                result = response.json()
-                if result.get("status") == "success":
-                    print(f"✅ Đã cập nhật AI response lên Google Sheets: ID {data.get('ID')}")
-                    print(f"📝 Vị trí: {result.get('message', 'Thành công')}")
-                    return True
-                else:
-                    print(f"❌ Apps Script error: {result.get('message', 'Unknown error')}")
-                    return False
-            except json.JSONDecodeError:
-                # Nếu response không phải JSON, kiểm tra text response
-                if "Success" in response.text or "success" in response.text:
-                    print(f"✅ Đã gửi AI response lên Google Sheets: ID {data.get('ID')}")
-                    return True
-                else:
-                    print(f"⚠️ Response không phải JSON: {response.text[:200]}")
-                    return False
-        else:
-            print(f"❌ HTTP Error: {response.status_code}")
-            print(f"Response: {response.text[:200]}")
-            return False
-            
-    except requests.exceptions.Timeout:
-        print("❌ Timeout khi gửi dữ liệu lên Google Sheets")
-        return False
-    except requests.exceptions.RequestException as e:
-        print(f"❌ Lỗi kết nối: {e}")
-        return False
-    except Exception as e:
-        print(f"❌ Lỗi khi gửi dữ liệu lên Google Sheets: {e}")
-        return False
-
-# Flask API endpoint for web consultation
-@app.route('/health-consultation', methods=['POST'])
-def health_consultation():
-    try:
-        data = request.get_json()
-        print(f"📨 Nhận yêu cầu tư vấn từ web: {data}")
-        
-        # Validate required fields
-        required_fields = ["id", "heartRate", "breathRate", "weight", "height"]
-        for field in required_fields:
-            if field not in data:
-                return jsonify({
-                    "status": "error", 
-                    "message": f"Thiếu thông tin: {field}"
-                }), 400
-        
-        # Convert data format to match MQTT format
-        health_data = {
-            "ID": data["id"],
-            "HeartRate": int(data["heartRate"]),
-            "BreathRate": int(data["breathRate"]),
-            "Weight": float(data["weight"]),
-            "Height": float(data["height"]),
-            "Gender": data.get("gender", ""),
-            "Age": data.get("age", "")
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
         }
         
-        # Calculate BMI if not provided
-        if "bmi" in data and data["bmi"]:
-            health_data["BMI"] = float(data["bmi"])
-        else:
-            height_m = health_data["Height"] / 100
-            health_data["BMI"] = round(health_data["Weight"] / (height_m ** 2), 1)
-        
-        # Process health consultation
-        ai_response = get_ai_consultation(health_data)
-        
-        # Send to Google Sheets
-        sheets_success = send_to_google_sheets(health_data, ai_response)
-        
-        return jsonify({
-            "status": "success",
-            "aiResponse": ai_response,
-            "sheetsSaved": sheets_success,
-            "message": "Tư vấn sức khỏe thành công!"
-        })
-        
-    except Exception as e:
-        print(f"❌ Lỗi API health-consultation: {e}")
-        return jsonify({
-            "status": "error",
-            "message": f"Lỗi xử lý: {str(e)}"
-        }), 500
-
-# Health check endpoint
-@app.route('/', methods=['GET'])
-def health_check():
-    return jsonify({
-        "status": "ok",
-        "service": "Medical AI",
-        "message": "Server đang hoạt động bình thường",
-        "endpoints": {
-            "consultation": "/health-consultation (POST)",
-            "health": "/ (GET)"
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 1200px;
         }
-    })
-
-def get_ai_consultation(data):
-    """Generate AI health consultation"""
-    try:
-        heart_rate = data["HeartRate"]
-        breathing_rate = data["BreathRate"]
-        weight = data["Weight"]
-        height = data["Height"]
-        bmi = data["BMI"]
         
-        # Create enhanced question with gender and age if available
-        base_question = (f"Nhịp tim của tôi là {heart_rate}bpm, nhịp thở là {breathing_rate}rpm, "
-                        f"cân nặng là {weight}kg, chiều cao là {height}cm, BMI là {bmi}")
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
         
-        if data.get("Age"):
-            base_question += f", tuổi {data['Age']}"
-        if data.get("Gender"):
-            base_question += f", giới tính {data['Gender']}"
+        .header h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            color: #666;
+            font-size: 16px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e1e1e1;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .gender-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 8px;
+        }
+        
+        .radio-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+        
+        .radio-option input[type="radio"] {
+            width: auto;
+            margin: 0;
+        }
+        
+        .submit-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+        }
+        
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+        
+        .submit-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
+            display: none;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.loading {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .required {
+            color: red;
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 15px;
+        }
+        
+        .form-row .form-group {
+            flex: 1;
+        }
+        
+        .search-section {
+            margin-top: 0;
+            padding-top: 0;
+            border-top: none;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+        }
+        
+        .form-section {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 12px;
+            border: 2px solid #e1e1e1;
+        }
+        
+        .search-section {
+            background: #f1f8ff;
+            padding: 30px;
+            border-radius: 12px;
+            border: 2px solid #d1ecf1;
+        }
+        
+        .search-result {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            display: none;
+        }
+        
+        .result-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin-top: 15px;
+        }
+        
+        .result-item {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .result-item h4 {
+            color: #667eea;
+            margin-bottom: 6px;
+            font-size: 12px;
+        }
+        
+        .result-item .value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .search-btn {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        }
+        
+        .search-btn:hover {
+            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
+        }
+        
+        .consult-btn {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+            margin-top: 10px;
+        }
+        
+        .consult-btn:hover {
+            box-shadow: 0 8px 25px rgba(255, 107, 107, 0.3);
+        }
+        
+        .consult-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .consultation-result {
+            margin-top: 20px;
+            padding: 20px;
+            background: #fff8e1;
+            border-radius: 8px;
+            border-left: 4px solid #ff9800;
+        }
+        
+        .consultation-content {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+            line-height: 1.6;
+            font-size: 14px;
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }        @media (max-width: 600px) {
+            .form-row {
+                flex-direction: column;
+                gap: 0;
+            }
             
-        base_question += ". Hãy tư vấn cho tôi về sức khỏe hiện tại. Cần chi tiết về tình trạng sức khỏe, lời khuyên về ăn uống và lối sống."
-        
-        messages = [
-            {"role": "system", "content": "Bạn là một trợ lý y tế chuyên nghiệp. Hãy luôn trả lời bằng tiếng Việt với lời khuyên y tế rõ ràng và chính xác."},
-            {"role": "user", "content": base_question}
-        ]
-
-        inputs = tokenizer.apply_chat_template(messages, add_generation_prompt=True, return_tensors="pt")
-        attention_mask = inputs != tokenizer.pad_token_id
-
-        outputs = model.generate(
-            inputs, 
-            attention_mask=attention_mask,
-            max_new_tokens=300, 
-            temperature=0.7,
-            pad_token_id=tokenizer.eos_token_id,
-            do_sample=True
-        )
-
-        response = tokenizer.decode(outputs[0][inputs.shape[-1]:], skip_special_tokens=True)
-        
-        print("\n" + "="*50)
-        print(f"🩺 Kết quả tư vấn cho ID {data.get('ID', 'N/A')}:")
-        print(f"📊 Thông số: Nhịp tim {heart_rate}bpm | Nhịp thở {breathing_rate}rpm | BMI {bmi}")
-        print("="*50)
-        print(response)
-        print("="*50 + "\n")
-        
-        return response
-        
-    except Exception as e:
-        print(f"❌ Lỗi tạo AI consultation: {e}")
-        return "Xin lỗi, không thể tạo tư vấn sức khỏe lúc này. Vui lòng thử lại sau."
-
-def main():
-    print("Đang khởi động Medical AI Flask API...")
-    
-    if "YOUR_DEPLOYMENT_ID" in APPS_SCRIPT_URL:
-        print("⚠️ Chưa cấu hình Apps Script URL!")
-        print("💡 Vui lòng thay YOUR_DEPLOYMENT_ID bằng deployment ID thực tế")
-    
-    try:
-        print("🌐 Đang khởi động Flask API server...")
-        print("✅ Medical AI API đã sẵn sàng!")
-        print("🌐 Flask API: http://localhost:5000/health-consultation")
-        print("Nhấn Ctrl+C để thoát")
-        
-        # Start Flask API
-        app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)
+            .container {
+                padding: 30px 20px;
+            }
             
-    except KeyboardInterrupt:
-        print("\nĐang thoát...")
-    except Exception as e:
-        print(f"Lỗi: {e}")
-    finally:
-        print("Đã tắt Medical AI API")
+            .main-content {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .result-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (max-width: 900px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏥 FUVI CAFE</h1>
+            <p>Health Monitor - Quản lý thông tin sức khỏe</p>
+        </div>
+        
+        <div class="main-content">
+            <!-- Form Section -->
+            <div class="form-section">
+                <div class="header">
+                    <h2>💾 Lưu thông tin cá nhân</h2>
+                    <p>Nhập thông tin để lưu vào hệ thống</p>
+                </div>
+                
+                <form id="healthForm">
+                    <div class="form-group">
+                        <label for="id">ID <span class="required">*</span></label>
+                        <input type="text" id="id" name="id" placeholder="Nhập ID" required>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="weight">Cân nặng (kg) <span class="required">*</span></label>
+                            <input type="number" id="weight" name="weight" min="1" max="200" step="0.1" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="height">Chiều cao (cm) <span class="required">*</span></label>
+                            <input type="number" id="height" name="height" min="1" max="250" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="age">Tuổi <span class="required">*</span></label>
+                            <input type="number" id="age" name="age" min="1" max="120" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Giới tính <span class="required">*</span></label>
+                            <div class="gender-group">
+                                <div class="radio-option">
+                                    <input type="radio" id="male" name="gender" value="Nam" required>
+                                    <label for="male">Nam</label>
+                                </div>
+                                <div class="radio-option">
+                                    <input type="radio" id="female" name="gender" value="Nữ" required>
+                                    <label for="female">Nữ</label>
+                                </div>
+                                <div class="radio-option">
+                                    <input type="radio" id="other" name="gender" value="Khác" required>
+                                    <label for="other">Khác</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="submit-btn" id="submitBtn">
+                        💾 Lưu thông tin cá nhân
+                    </button>
+                </form>
+            </div>
+            
+            <!-- Search Section -->
+            <div class="search-section">
+                <div class="header">
+                    <h2>🔍 Tra cứu thông tin theo ID</h2>
+                    <p>Nhập ID để xem thông tin sức khỏe</p>
+                    <div style="margin-top: 10px;">
+                        <button type="button" onclick="setMedicalAIServer()" style="background: #6c757d; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                            ⚙️ Cấu hình IP Medical AI
+                        </button>
+                        <button type="button" onclick="testMedicalAIConnection()" style="background: #28a745; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-left: 5px;">
+                            🔧 Test kết nối
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="searchId">ID cần tra cứu</label>
+                    <input type="text" id="searchId" name="searchId" placeholder="Nhập ID để tra cứu">
+                </div>
+                
+                <button type="button" class="submit-btn search-btn" id="searchBtn">
+                    🔍 Tra cứu thông tin
+                </button>
+                
+                <div id="searchResult" class="search-result">
+                    <h3>📊 Thông tin ID: <span id="resultId"></span></h3>
+                    <div class="result-grid">
+                        <div class="result-item">
+                            <h4>❤️ Nhịp tim</h4>
+                            <div class="value" id="heartRate">-- bpm</div>
+                        </div>
+                        <div class="result-item">
+                            <h4>🫁 Nhịp thở</h4>
+                            <div class="value" id="breathRate">-- rpm</div>
+                        </div>
+                        <div class="result-item">
+                            <h4>📏 Chiều cao</h4>
+                            <div class="value" id="displayHeight">-- cm</div>
+                        </div>
+                        <div class="result-item">
+                            <h4>⚖️ Cân nặng</h4>
+                            <div class="value" id="displayWeight">-- kg</div>
+                        </div>
+                        <div class="result-item">
+                            <h4>👤 Giới tính</h4>
+                            <div class="value" id="displayGender">--</div>
+                        </div>
+                        <div class="result-item">
+                            <h4>🎂 Tuổi</h4>
+                            <div class="value" id="displayAge">-- tuổi</div>
+                        </div>
+                        <div class="result-item">
+                            <h4>📊 BMI</h4>
+                            <div class="value" id="displayBMI">--</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Health Consultation Button -->
+                    <button type="button" class="submit-btn consult-btn" id="consultBtn" style="display: none;">
+                        🩺 Tư vấn sức khỏe với AI
+                    </button>
+                    
+                    <!-- AI Consultation Result -->
+                    <div id="consultResult" class="consultation-result" style="display: none;">
+                        <h3>🩺 Kết quả tư vấn AI</h3>
+                        <div class="consultation-content" id="consultationContent">
+                            <!-- AI response will be displayed here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="status" class="status"></div>
+    </div>
 
-if __name__ == "__main__":
-    main()
+    <script>
+        // Configuration
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxj-9MyVzJTzE-D6kMarQyyS-xuG93MhDo52wmGNYbc9op6u_QkZsbow-nPU4Qm4jh1Yw/exec';
+        
+        // Medical AI server URL configuration
+        let MEDICAL_AI_URL = 'http://localhost:5000/health-consultation';
+        
+        // Function to set Medical AI server IP
+        function setMedicalAIServer() {
+            const userIP = prompt('Nhập IP máy chạy Medical AI:\\n(Ví dụ: 192.168.1.100)\\nĐể trống nếu chạy trên máy này', '');
+            if (userIP && userIP.trim()) {
+                MEDICAL_AI_URL = 'http://' + userIP.trim() + ':5000/health-consultation';
+                localStorage.setItem('medicalAIURL', MEDICAL_AI_URL);
+                showStatus('success', '✅ Đã đặt Medical AI server: ' + userIP.trim() + ':5000');
+            }
+        }
+        
+        // Load saved Medical AI URL
+        const savedURL = localStorage.getItem('medicalAIURL');
+        if (savedURL) {
+            MEDICAL_AI_URL = savedURL;
+        }
+        
+        // Test Medical AI connection
+        async function testMedicalAIConnection() {
+            try {
+                const response = await fetch(MEDICAL_AI_URL.replace('/health-consultation', '/'), {
+                    method: 'GET'
+                });
+                
+                if (response.ok) {
+                    showStatus('success', '✅ Kết nối Medical AI thành công!');
+                } else {
+                    throw new Error('HTTP ' + response.status);
+                }
+            } catch (error) {
+                showStatus('error', '❌ Không kết nối được Medical AI\\nClick nút "⚙️" để cấu hình IP');
+            }
+        }
+        
+        document.getElementById('healthForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const submitBtn = document.getElementById('submitBtn');
+            const status = document.getElementById('status');
+            
+            // Disable button and show loading
+            submitBtn.disabled = true;
+            submitBtn.textContent = '⏳ Đang lưu...';
+            showStatus('loading', 'Đang lưu thông tin cá nhân...');
+            
+            // Get form data
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData);
+            
+            // Validate data
+            if (!data.id || !data.weight || !data.height || !data.age || !data.gender) {
+                showStatus('error', '❌ Vui lòng điền đầy đủ thông tin bắt buộc');
+                submitBtn.disabled = false;
+                submitBtn.textContent = '💾 Lưu thông tin cá nhân';
+                return;
+            }
+            
+            // Calculate BMI
+            const weight = parseFloat(data.weight);
+            const height = parseFloat(data.height) / 100; // convert cm to m
+            
+            if (isNaN(weight) || isNaN(height) || weight <= 0 || height <= 0) {
+                showStatus('error', '❌ Cân nặng và chiều cao không hợp lệ');
+                submitBtn.disabled = false;
+                submitBtn.textContent = '💾 Lưu thông tin cá nhân';
+                return;
+            }
+            
+            const bmi = (weight / (height * height)).toFixed(2);
+            
+            // Add calculated fields (chỉ giữ BMI và type)
+            data.bmi = bmi;
+            data.type = 'personal_info'; // Phân biệt với dữ liệu từ ESP32
+            
+            // Debug: Log data being sent
+            console.log('Sending data:', data);
+            console.log('URL:', GOOGLE_SCRIPT_URL);
+            
+            try {
+                // Send to Google Sheets with timeout
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+                
+                const response = await fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams(data),
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                console.log('Response status:', response.status);
+                console.log('Response ok:', response.ok);
+                
+                const result = await response.text();
+                console.log('Response body:', result);
+                
+                if (response.ok) {
+                    if (result.includes('Success') || result.includes('added') || result.includes('updated')) {
+                        showStatus('success', `✅ Lưu thành công thông tin cho ID: ${data.id}! BMI: ${bmi}`);
+                        this.reset(); // Clear form
+                        
+                        // Auto hide success message after 5 seconds
+                        setTimeout(() => {
+                            hideStatus();
+                        }, 5000);
+                    } else if (result.includes('Error')) {
+                        throw new Error('Google Apps Script Error: ' + result);
+                    } else {
+                        // Sometimes Google returns HTML instead of our expected text
+                        showStatus('success', `✅ Thông tin đã được lưu cho ID: ${data.id}! BMI: ${bmi}`);
+                        this.reset();
+                        setTimeout(() => hideStatus(), 5000);
+                    }
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText} - ${result}`);
+                }
+                
+            } catch (error) {
+                console.error('Error details:', error);
+                
+                let errorMessage = '❌ Lỗi: ';
+                
+                if (error.name === 'AbortError') {
+                    errorMessage += 'Timeout - Quá thời gian chờ. Vui lòng thử lại.';
+                } else if (error.message.includes('Failed to fetch')) {
+                    errorMessage += 'Không thể kết nối. Kiểm tra kết nối internet và URL Google Apps Script.';
+                } else if (error.message.includes('CORS')) {
+                    errorMessage += 'Lỗi CORS. Kiểm tra cấu hình Google Apps Script.';
+                } else if (error.message.includes('HTTP')) {
+                    errorMessage += error.message;
+                } else {
+                    errorMessage += error.message || 'Không thể gửi dữ liệu. Vui lòng thử lại.';
+                }
+                
+                showStatus('error', errorMessage);
+            } finally {
+                // Re-enable button
+                submitBtn.disabled = false;
+                submitBtn.textContent = '💾 Lưu thông tin cá nhân';
+            }
+        });
+        
+        // Search functionality
+        document.getElementById('searchBtn').addEventListener('click', async function() {
+            const searchId = document.getElementById('searchId').value.trim();
+            const searchBtn = document.getElementById('searchBtn');
+            const searchResult = document.getElementById('searchResult');
+            
+            if (!searchId) {
+                showStatus('error', '❌ Vui lòng nhập ID cần tra cứu');
+                return;
+            }
+            
+            // Disable button and show loading
+            searchBtn.disabled = true;
+            searchBtn.textContent = '⏳ Đang tìm kiếm...';
+            showStatus('loading', 'Đang tra cứu thông tin...');
+            
+            try {
+                // Send search request to Google Apps Script
+                const response = await fetch(GOOGLE_SCRIPT_URL + '?action=search&id=' + encodeURIComponent(searchId), {
+                    method: 'GET'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const result = await response.text();
+                console.log('Search result:', result);
+                
+                if (result.includes('not found') || result.includes('No data')) {
+                    showStatus('error', `❌ Không tìm thấy dữ liệu cho ID: ${searchId}`);
+                    searchResult.style.display = 'none';
+                } else if (result.includes('Error') || result.includes('Chưa cấu hình')) {
+                    showStatus('error', `❌ Lỗi Google Apps Script: ${result}`);
+                    searchResult.style.display = 'none';
+                } else {
+                    // Parse the result (expecting JSON format)
+                    let data;
+                    try {
+                        data = JSON.parse(result);
+                    } catch (e) {
+                        // If not JSON, check if it's a simple text response
+                        console.log('Not JSON format, result:', result);
+                        if (result.includes('Health Monitor API is running')) {
+                            showStatus('error', '❌ Google Apps Script chưa được cập nhật! Vui lòng deploy phiên bản mới có chức năng search.');
+                        } else {
+                            showStatus('error', '❌ Dữ liệu không đúng định dạng. Kiểm tra Google Apps Script.');
+                        }
+                        searchResult.style.display = 'none';
+                        return;
+                    }
+                    
+                    // Display the results
+                    document.getElementById('resultId').textContent = searchId;
+                    document.getElementById('heartRate').textContent = data.heartRate ? data.heartRate + ' bpm' : '-- bpm';
+                    document.getElementById('breathRate').textContent = data.breathRate ? data.breathRate + ' rpm' : '-- rpm';
+                    document.getElementById('displayHeight').textContent = data.height ? data.height + ' cm' : '-- cm';
+                    document.getElementById('displayWeight').textContent = data.weight ? data.weight + ' kg' : '-- kg';
+                    document.getElementById('displayGender').textContent = data.gender || '--';
+                    document.getElementById('displayAge').textContent = data.age ? data.age + ' tuổi' : '-- tuổi';
+                    document.getElementById('displayBMI').textContent = data.bmi || '--';
+                    
+                    searchResult.style.display = 'block';
+                    
+                    // Show consultation button if we have enough data
+                    const hasRequiredData = data.heartRate && data.breathRate && data.height && data.weight;
+                    const consultBtn = document.getElementById('consultBtn');
+                    if (hasRequiredData) {
+                        consultBtn.style.display = 'block';
+                    } else {
+                        consultBtn.style.display = 'none';
+                    }
+                    
+                    // Hide previous consultation result
+                    document.getElementById('consultResult').style.display = 'none';
+                    
+                    showStatus('success', `✅ Tìm thấy thông tin cho ID: ${searchId}`);
+                    
+                    // Auto hide success message
+                    setTimeout(() => hideStatus(), 3000);
+                }
+                
+            } catch (error) {
+                console.error('Search error:', error);
+                showStatus('error', '❌ Lỗi khi tra cứu: ' + error.message);
+                searchResult.style.display = 'none';
+            } finally {
+                // Re-enable button
+                searchBtn.disabled = false;
+                searchBtn.textContent = '🔍 Tra cứu thông tin';
+            }
+        });
+        
+        // Allow Enter key to trigger search
+        document.getElementById('searchId').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                document.getElementById('searchBtn').click();
+            }
+        });
+        
+        function showStatus(type, message) {
+            const status = document.getElementById('status');
+            status.className = `status ${type}`;
+            status.textContent = message;
+            status.style.display = 'block';
+        }
+        
+        function hideStatus() {
+            const status = document.getElementById('status');
+            status.style.display = 'none';
+        }
+        
+        // Auto-calculate and show BMI preview
+        document.getElementById('weight').addEventListener('input', updateBMIPreview);
+        document.getElementById('height').addEventListener('input', updateBMIPreview);
+        
+        // Health consultation functionality
+        const consultBtn = document.getElementById('consultBtn');
+        const consultResult = document.getElementById('consultResult');
+        const consultationContent = document.getElementById('consultationContent');
+        
+        consultBtn.addEventListener('click', async function() {
+            const searchId = document.getElementById('searchId').value.trim();
+            
+            if (!searchId) {
+                showStatus('error', '❌ Vui lòng tra cứu ID trước khi tư vấn');
+                return;
+            }
+            
+            // Get current displayed data
+            const heartRate = document.getElementById('heartRate').textContent.replace(' bpm', '');
+            const breathRate = document.getElementById('breathRate').textContent.replace(' rpm', '');
+            const height = document.getElementById('displayHeight').textContent.replace(' cm', '');
+            const weight = document.getElementById('displayWeight').textContent.replace(' kg', '');
+            const gender = document.getElementById('displayGender').textContent;
+            const age = document.getElementById('displayAge').textContent.replace(' tuổi', '');
+            const bmi = document.getElementById('displayBMI').textContent;
+            
+            // Validate data
+            if (heartRate === '--' || breathRate === '--' || height === '--' || weight === '--') {
+                showStatus('error', '❌ Dữ liệu không đầy đủ. Vui lòng đảm bảo có đủ thông tin nhịp tim, hơi thở, chiều cao và cân nặng');
+                return;
+            }
+            
+            // Disable button and show loading
+            consultBtn.disabled = true;
+            consultBtn.innerHTML = '<span class="loading-spinner"></span> Đang tư vấn...';
+            consultResult.style.display = 'none';
+            
+            const consultationData = {
+                id: searchId,
+                heartRate: parseInt(heartRate),
+                breathRate: parseInt(breathRate),
+                weight: parseFloat(weight),
+                height: parseFloat(height),
+                gender: gender !== '--' ? gender : '',
+                age: age !== '--' ? parseInt(age) : '',
+                bmi: bmi !== '--' ? parseFloat(bmi) : ''
+            };
+            
+            console.log('Sending consultation request:', consultationData);
+            
+            try {
+                // Send to Medical AI API using dynamic URL
+                const response = await fetch(MEDICAL_AI_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(consultationData)
+                });
+                
+                const result = await response.json();
+                console.log('Consultation response:', result);
+                
+                if (response.ok && result.status === 'success') {
+                    // Display AI response
+                    consultationContent.innerHTML = `
+                        <div style="margin-bottom: 10px;">
+                            <strong>🩺 Tư vấn AI cho ID ${searchId}:</strong>
+                        </div>
+                        <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; border-left: 3px solid #28a745;">
+                            ${result.aiResponse.replace(/\n/g, '<br>')}
+                        </div>
+                        <div style="margin-top: 10px; font-size: 12px; color: #666;">
+                            ${result.sheetsSaved ? '✅ Đã lưu vào Google Sheets' : '⚠️ Chưa lưu được vào Google Sheets'}
+                        </div>
+                    `;
+                    consultResult.style.display = 'block';
+                    showStatus('success', '✅ Tư vấn sức khỏe thành công!');
+                } else {
+                    throw new Error(result.message || 'Lỗi không xác định');
+                }
+                
+            } catch (error) {
+                console.error('Consultation error:', error);
+                let errorMessage = '❌ Lỗi tư vấn: ';
+                
+                if (error.message.includes('Failed to fetch')) {
+                    errorMessage += 'Không thể kết nối đến Medical AI server. \\nVui lòng:\\n1. Đảm bảo Medical AI đang chạy\\n2. Click "⚙️ Cấu hình IP" để nhập đúng IP\\n3. Click "🔧 Test kết nối" để kiểm tra';
+                } else {
+                    errorMessage += error.message;
+                }
+                
+                showStatus('error', errorMessage);
+            } finally {
+                // Re-enable button
+                consultBtn.disabled = false;
+                consultBtn.innerHTML = '🩺 Tư vấn sức khỏe với AI';
+            }
+        });
+        
+        function updateBMIPreview() {
+            const weight = parseFloat(document.getElementById('weight').value);
+            const height = parseFloat(document.getElementById('height').value);
+            
+            if (weight > 0 && height > 0) {
+                const bmi = (weight / Math.pow(height / 100, 2)).toFixed(1);
+                let category = '';
+                
+                if (bmi < 18.5) category = '(Thiếu cân)';
+                else if (bmi < 25) category = '(Bình thường)';
+                else if (bmi < 30) category = '(Thừa cân)';
+                else category = '(Béo phì)';
+                
+                document.getElementById('submitBtn').textContent = `💾 Lưu thông tin (BMI: ${bmi} ${category})`;
+            } else {
+                document.getElementById('submitBtn').textContent = '💾 Lưu thông tin cá nhân';
+            }
+        }
+    </script>
+</body>
+</html>
