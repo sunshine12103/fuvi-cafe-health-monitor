@@ -368,6 +368,14 @@
                 <div class="header">
                     <h2>🔍 Tra cứu thông tin theo ID</h2>
                     <p>Nhập ID để xem thông tin sức khỏe</p>
+                    <div style="margin-top: 10px;">
+                        <button type="button" onclick="setMedicalAIServer()" style="background: #6c757d; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                            ⚙️ Cấu hình IP Medical AI
+                        </button>
+                        <button type="button" onclick="testMedicalAIConnection()" style="background: #28a745; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-left: 5px;">
+                            🔧 Test kết nối
+                        </button>
+                    </div>
                 </div>
                 
                 <div class="form-group">
@@ -432,8 +440,44 @@
     </div>
 
     <script>
-        // Thay đổi URL này thành URL Google Apps Script của bạn
-        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzC7xaA2-uvlgNZqnSBDK5PIbzGSV53uY-492zli7woc_jVpi-FI2QB0IsHSh5cVQmgtQ/exec';
+        // Configuration
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxZV8tzEti3zfrCm_tJga1JYeZiPcOE_X6dueTADvGuNQ3t3b6y6oYPwpSrEUvUcQduVg/exec';
+        
+        // Medical AI server URL configuration
+        let MEDICAL_AI_URL = 'http://localhost:5000/health-consultation';
+        
+        // Function to set Medical AI server IP
+        function setMedicalAIServer() {
+            const userIP = prompt('Nhập IP máy chạy Medical AI:\\n(Ví dụ: 192.168.1.100)\\nĐể trống nếu chạy trên máy này', '');
+            if (userIP && userIP.trim()) {
+                MEDICAL_AI_URL = 'http://' + userIP.trim() + ':5000/health-consultation';
+                localStorage.setItem('medicalAIURL', MEDICAL_AI_URL);
+                showStatus('success', '✅ Đã đặt Medical AI server: ' + userIP.trim() + ':5000');
+            }
+        }
+        
+        // Load saved Medical AI URL
+        const savedURL = localStorage.getItem('medicalAIURL');
+        if (savedURL) {
+            MEDICAL_AI_URL = savedURL;
+        }
+        
+        // Test Medical AI connection
+        async function testMedicalAIConnection() {
+            try {
+                const response = await fetch(MEDICAL_AI_URL.replace('/health-consultation', '/'), {
+                    method: 'GET'
+                });
+                
+                if (response.ok) {
+                    showStatus('success', '✅ Kết nối Medical AI thành công!');
+                } else {
+                    throw new Error('HTTP ' + response.status);
+                }
+            } catch (error) {
+                showStatus('error', '❌ Không kết nối được Medical AI\\nClick nút "⚙️" để cấu hình IP');
+            }
+        }
         
         document.getElementById('healthForm').addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -710,8 +754,8 @@
             console.log('Sending consultation request:', consultationData);
             
             try {
-                // Send to Medical AI API
-                const response = await fetch('http://localhost:5000/health-consultation', {
+                // Send to Medical AI API using dynamic URL
+                const response = await fetch(MEDICAL_AI_URL, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -746,7 +790,7 @@
                 let errorMessage = '❌ Lỗi tư vấn: ';
                 
                 if (error.message.includes('Failed to fetch')) {
-                    errorMessage += 'Không thể kết nối đến Medical AI. Đảm bảo server đang chạy trên localhost:5000';
+                    errorMessage += 'Không thể kết nối đến Medical AI server. \\nVui lòng:\\n1. Đảm bảo Medical AI đang chạy\\n2. Click "⚙️ Cấu hình IP" để nhập đúng IP\\n3. Click "🔧 Test kết nối" để kiểm tra';
                 } else {
                     errorMessage += error.message;
                 }
