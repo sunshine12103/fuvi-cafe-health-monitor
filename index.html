@@ -177,6 +177,11 @@
         </div>
         
         <form id="healthForm">
+            <div class="form-group">
+                <label for="id">ID <span class="required">*</span></label>
+                <input type="text" id="id" name="id" placeholder="Nhập ID (ví dụ: 1, 2, 3...)" required>
+            </div>
+            
             <div class="form-row">
                 <div class="form-group">
                     <label for="weight">Cân nặng (kg) <span class="required">*</span></label>
@@ -214,13 +219,8 @@
                 </div>
             </div>
             
-            <div class="form-group">
-                <label for="name">Họ và tên (tùy chọn)</label>
-                <input type="text" id="name" name="name" placeholder="Nhập họ và tên...">
-            </div>
-            
             <button type="submit" class="submit-btn" id="submitBtn">
-                📊 Gửi thông tin
+                💾 Lưu thông tin cá nhân
             </button>
             
             <button type="button" class="submit-btn" id="testBtn" style="margin-top: 10px; background: #28a745;">
@@ -233,7 +233,7 @@
 
     <script>
         // Thay đổi URL này thành URL Google Apps Script của bạn
-        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyiQNh-PWG748HYIsM9RSl_EQmw7gqicVOsGLTBolvMHJWOeGriA_3KMCnhaf8Mo-prKw/exec';
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxZV8tzEti3zfrCm_tJga1JYeZiPcOE_X6dueTADvGuNQ3t3b6y6oYPwpSrEUvUcQduVg/exec';
         
         document.getElementById('healthForm').addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -243,18 +243,18 @@
             
             // Disable button and show loading
             submitBtn.disabled = true;
-            submitBtn.textContent = '⏳ Đang gửi...';
-            showStatus('loading', 'Đang gửi dữ liệu...');
+            submitBtn.textContent = '⏳ Đang lưu...';
+            showStatus('loading', 'Đang lưu thông tin cá nhân...');
             
             // Get form data
             const formData = new FormData(this);
             const data = Object.fromEntries(formData);
             
             // Validate data
-            if (!data.weight || !data.height || !data.age || !data.gender) {
+            if (!data.id || !data.weight || !data.height || !data.age || !data.gender) {
                 showStatus('error', '❌ Vui lòng điền đầy đủ thông tin bắt buộc');
                 submitBtn.disabled = false;
-                submitBtn.textContent = '📊 Gửi thông tin';
+                submitBtn.textContent = '💾 Lưu thông tin cá nhân';
                 return;
             }
             
@@ -265,23 +265,14 @@
             if (isNaN(weight) || isNaN(height) || weight <= 0 || height <= 0) {
                 showStatus('error', '❌ Cân nặng và chiều cao không hợp lệ');
                 submitBtn.disabled = false;
-                submitBtn.textContent = '📊 Gửi thông tin';
+                submitBtn.textContent = '💾 Lưu thông tin cá nhân';
                 return;
             }
             
             const bmi = (weight / (height * height)).toFixed(2);
             
-            // Add calculated fields
+            // Add calculated fields (chỉ giữ BMI và type)
             data.bmi = bmi;
-            data.timestamp = new Date().toLocaleString('vi-VN', {
-                timeZone: 'Asia/Ho_Chi_Minh',
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit'
-            });
             data.type = 'personal_info'; // Phân biệt với dữ liệu từ ESP32
             
             // Debug: Log data being sent
@@ -289,9 +280,6 @@
             console.log('URL:', GOOGLE_SCRIPT_URL);
             
             try {
-                // Test URL first
-                console.log('Testing connection to Google Apps Script...');
-                
                 // Send to Google Sheets with timeout
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
@@ -314,8 +302,8 @@
                 console.log('Response body:', result);
                 
                 if (response.ok) {
-                    if (result.includes('Success') || result.includes('added')) {
-                        showStatus('success', `✅ Gửi thành công! BMI của bạn: ${bmi}`);
+                    if (result.includes('Success') || result.includes('added') || result.includes('updated')) {
+                        showStatus('success', `✅ Lưu thành công thông tin cho ID: ${data.id}! BMI: ${bmi}`);
                         this.reset(); // Clear form
                         
                         // Auto hide success message after 5 seconds
@@ -326,7 +314,7 @@
                         throw new Error('Google Apps Script Error: ' + result);
                     } else {
                         // Sometimes Google returns HTML instead of our expected text
-                        showStatus('success', `✅ Dữ liệu đã được gửi! BMI của bạn: ${bmi}`);
+                        showStatus('success', `✅ Thông tin đã được lưu cho ID: ${data.id}! BMI: ${bmi}`);
                         this.reset();
                         setTimeout(() => hideStatus(), 5000);
                     }
@@ -355,7 +343,7 @@
             } finally {
                 // Re-enable button
                 submitBtn.disabled = false;
-                submitBtn.textContent = '📊 Gửi thông tin';
+                submitBtn.textContent = '💾 Lưu thông tin cá nhân';
             }
         });
         
@@ -423,9 +411,9 @@
                 else if (bmi < 30) category = '(Thừa cân)';
                 else category = '(Béo phì)';
                 
-                document.getElementById('submitBtn').textContent = `📊 Gửi thông tin (BMI: ${bmi} ${category})`;
+                document.getElementById('submitBtn').textContent = `💾 Lưu thông tin (BMI: ${bmi} ${category})`;
             } else {
-                document.getElementById('submitBtn').textContent = '📊 Gửi thông tin';
+                document.getElementById('submitBtn').textContent = '💾 Lưu thông tin cá nhân';
             }
         }
     </script>
