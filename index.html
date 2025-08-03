@@ -179,7 +179,7 @@
         <form id="healthForm">
             <div class="form-group">
                 <label for="id">ID <span class="required">*</span></label>
-                <input type="text" id="id" name="id" placeholder="Nhập ID (ví dụ: 1, 2, 3...)" required>
+                <input type="text" id="id" name="id" placeholder="Nhập ID" required>
             </div>
             
             <div class="form-row">
@@ -221,10 +221,6 @@
             
             <button type="submit" class="submit-btn" id="submitBtn">
                 💾 Lưu thông tin cá nhân
-            </button>
-            
-            <button type="button" class="submit-btn" id="testBtn" style="margin-top: 10px; background: #28a745;">
-                🔧 Test kết nối Google Sheets
             </button>
         </form>
         
@@ -344,41 +340,6 @@
                 // Re-enable button
                 submitBtn.disabled = false;
                 submitBtn.textContent = '💾 Lưu thông tin cá nhân';
-            }
-        });
-        
-        // Test connection button
-        document.getElementById('testBtn').addEventListener('click', async function() {
-            const testBtn = this;
-            const originalText = testBtn.textContent;
-            
-            testBtn.disabled = true;
-            testBtn.textContent = '⏳ Đang test...';
-            showStatus('loading', 'Đang kiểm tra kết nối...');
-            
-            try {
-                console.log('Testing GET request to:', GOOGLE_SCRIPT_URL);
-                
-                const response = await fetch(GOOGLE_SCRIPT_URL, {
-                    method: 'GET'
-                });
-                
-                console.log('Test response status:', response.status);
-                const result = await response.text();
-                console.log('Test response body:', result);
-                
-                if (response.ok) {
-                    showStatus('success', '✅ Kết nối Google Sheets thành công!');
-                } else {
-                    showStatus('error', `❌ Lỗi kết nối: HTTP ${response.status}`);
-                }
-                
-            } catch (error) {
-                console.error('Test error:', error);
-                showStatus('error', `❌ Lỗi test: ${error.message}`);
-            } finally {
-                testBtn.disabled = false;
-                testBtn.textContent = originalText;
             }
         });
         
