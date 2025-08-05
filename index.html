@@ -711,6 +711,8 @@
             
             try {
                 // Send to Medical AI API
+                console.log('🔗 Connecting to Medical AI at: http://192.168.1.4:5000/health-consultation');
+                
                 const response = await fetch('http://192.168.1.4:5000/health-consultation', {
                     method: 'POST',
                     headers: {
@@ -718,6 +720,9 @@
                     },
                     body: JSON.stringify(consultationData)
                 });
+                
+                console.log('📡 Response status:', response.status);
+                console.log('📡 Response headers:', response.headers);
                 
                 const result = await response.json();
                 console.log('Consultation response:', result);
@@ -746,7 +751,7 @@
                 let errorMessage = '❌ Lỗi tư vấn: ';
                 
                 if (error.message.includes('Failed to fetch')) {
-                    errorMessage += 'Không thể kết nối đến Medical AI. Đảm bảo server đang chạy trên localhost:5000';
+                    errorMessage += 'Không thể kết nối đến Medical AI. Đảm bảo server đang chạy trên 192.168.1.4:5000';
                 } else {
                     errorMessage += error.message;
                 }
