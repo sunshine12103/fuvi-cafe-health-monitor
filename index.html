@@ -439,6 +439,22 @@
         // Để tìm IP ESP32: Xem Serial Monitor khi ESP32 kết nối WiFi
         const ESP32_IP = '192.168.1.10'; // Thay đổi IP này cho phù hợp
         
+        // Test ESP32 connection on page load
+        window.addEventListener('load', async function() {
+            try {
+                console.log('Testing ESP32 connection...');
+                const response = await fetch(`http://${ESP32_IP}/`);
+                if (response.ok) {
+                    const data = await response.text();
+                    console.log('ESP32 connected successfully:', data);
+                } else {
+                    console.error('ESP32 connection failed:', response.status);
+                }
+            } catch (error) {
+                console.error('ESP32 connection error:', error);
+            }
+        });
+        
         document.getElementById('healthForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
