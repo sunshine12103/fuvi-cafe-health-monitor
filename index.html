@@ -414,14 +414,14 @@
                     
                     <!-- Health Consultation Button -->
                     <button type="button" class="submit-btn consult-btn" id="consultBtn" style="display: none;">
-                        📡 Gửi dữ liệu qua MQTT
+                        🩺 Tư vấn sức khỏe với AI
                     </button>
                     
                     <!-- AI Consultation Result -->
                     <div id="consultResult" class="consultation-result" style="display: none;">
-                        <h3>📡 Kết quả gửi MQTT</h3>
+                        <h3>🩺 Kết quả tư vấn AI</h3>
                         <div class="consultation-content" id="consultationContent">
-                            <!-- MQTT response will be displayed here -->
+                            <!-- AI response will be displayed here -->
                         </div>
                     </div>
                 </div>
@@ -434,26 +434,6 @@
     <script>
         // Thay đổi URL này thành URL Google Apps Script của bạn
         const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzC7xaA2-uvlgNZqnSBDK5PIbzGSV53uY-492zli7woc_jVpi-FI2QB0IsHSh5cVQmgtQ/exec';
-        
-        // Thay đổi IP này thành IP của ESP32 trong mạng WiFi
-        // Để tìm IP ESP32: Xem Serial Monitor khi ESP32 kết nối WiFi
-        const ESP32_IP = '192.168.1.10'; // Thay đổi IP này cho phù hợp
-        
-        // Test ESP32 connection on page load
-        window.addEventListener('load', async function() {
-            try {
-                console.log('Testing ESP32 connection...');
-                const response = await fetch(`http://${ESP32_IP}/`);
-                if (response.ok) {
-                    const data = await response.text();
-                    console.log('ESP32 connected successfully:', data);
-                } else {
-                    console.error('ESP32 connection failed:', response.status);
-                }
-            } catch (error) {
-                console.error('ESP32 connection error:', error);
-            }
-        });
         
         document.getElementById('healthForm').addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -692,7 +672,7 @@
             const searchId = document.getElementById('searchId').value.trim();
             
             if (!searchId) {
-                showStatus('error', '❌ Vui lòng tra cứu ID trước khi gửi MQTT');
+                showStatus('error', '❌ Vui lòng tra cứu ID trước khi tư vấn');
                 return;
             }
             
@@ -707,13 +687,13 @@
             
             // Validate data
             if (heartRate === '--' || breathRate === '--' || height === '--' || weight === '--') {
-                showStatus('error', '❌ Dữ liệu không đầy đủ. Vui lòng đảm bảo có đủ thông tin nhịp tim, hơi thở, chiều cao và cân nặng để gửi MQTT');
+                showStatus('error', '❌ Dữ liệu không đầy đủ. Vui lòng đảm bảo có đủ thông tin nhịp tim, hơi thở, chiều cao và cân nặng');
                 return;
             }
             
             // Disable button and show loading
             consultBtn.disabled = true;
-            consultBtn.innerHTML = '<span class="loading-spinner"></span> Đang gửi MQTT...';
+            consultBtn.innerHTML = '<span class="loading-spinner"></span> Đang tư vấn...';
             consultResult.style.display = 'none';
             
             const consultationData = {
@@ -730,8 +710,8 @@
             console.log('Sending consultation request:', consultationData);
             
             try {
-                // Send to ESP32 which will forward to MQTT
-                const esp32Response = await fetch(`http://${ESP32_IP}/health-consultation`, {
+                // Send to Medical AI API
+                const response = await fetch('http://192.168.1.4:5000/health-consultation', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -739,32 +719,26 @@
                     body: JSON.stringify(consultationData)
                 });
                 
-                if (!esp32Response.ok) {
-                    throw new Error(`ESP32 không phản hồi (${esp32Response.status})`);
-                }
+                const result = await response.json();
+                console.log('Consultation response:', result);
                 
-                const esp32Result = await esp32Response.text();
-                console.log('ESP32 response:', esp32Result);
-                
-                if (esp32Result.includes('successfully')) {
-                    // Display success message
+                if (response.ok && result.status === 'success') {
+                    // Display AI response
                     consultationContent.innerHTML = `
                         <div style="margin-bottom: 10px;">
-                            <strong>🩺 Yêu cầu tư vấn cho ID ${searchId}:</strong>
+                            <strong>🩺 Tư vấn AI cho ID ${searchId}:</strong>
                         </div>
-                        <div style="background: #d4edda; padding: 10px; border-radius: 4px; border-left: 3px solid #28a745;">
-                            ✅ Đã gửi yêu cầu tư vấn thành công!<br>
-                            Dữ liệu đã được gửi đến topic MQTT: DATN/VALUESENSOR<br>
-                            Server: mqtt.fuvitech.vn:2883
+                        <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; border-left: 3px solid #28a745;">
+                            ${result.aiResponse.replace(/\n/g, '<br>')}
                         </div>
                         <div style="margin-top: 10px; font-size: 12px; color: #666;">
-                            💡 Lưu ý: Dữ liệu đã được gửi qua MQTT để xử lý
+                            ${result.sheetsSaved ? '✅ Đã lưu vào Google Sheets' : '⚠️ Chưa lưu được vào Google Sheets'}
                         </div>
                     `;
                     consultResult.style.display = 'block';
-                    showStatus('success', '✅ Gửi yêu cầu tư vấn qua MQTT thành công!');
+                    showStatus('success', '✅ Tư vấn sức khỏe thành công!');
                 } else {
-                    throw new Error('ESP32 không thể xử lý yêu cầu');
+                    throw new Error(result.message || 'Lỗi không xác định');
                 }
                 
             } catch (error) {
@@ -772,15 +746,16 @@
                 let errorMessage = '❌ Lỗi tư vấn: ';
                 
                 if (error.message.includes('Failed to fetch')) {
-                    errorMessage += 'Không thể kết nối đến ESP32. Kiểm tra địa chỉ IP và đảm bảo ESP32 đang hoạt động.';
+                    errorMessage += 'Không thể kết nối đến Medical AI. Đảm bảo server đang chạy trên localhost:5000';
                 } else {
                     errorMessage += error.message;
                 }
                 
                 showStatus('error', errorMessage);
             } finally {
+                // Re-enable button
                 consultBtn.disabled = false;
-                consultBtn.innerHTML = '📡 Gửi dữ liệu qua MQTT';
+                consultBtn.innerHTML = '🩺 Tư vấn sức khỏe với AI';
             }
         });
         
