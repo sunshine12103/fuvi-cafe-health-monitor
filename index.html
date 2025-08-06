@@ -710,11 +710,14 @@
             console.log('Sending consultation request:', consultationData);
             
             try {
-                // Send to Node-RED server
-                console.log('🔗 Connecting to Node-RED at: http://103.170.122.24:10005/health-consultation');
-                console.log('📊 Data will be forwarded to MQTT broker: mqtt.fuvitech.vn:2883');
+                // Luôn sử dụng HTTP Node-RED (đơn giản nhất)
+                const nodeRedUrl = 'http://103.170.122.24:10005/health-consultation';
                 
-                const response = await fetch('http://103.170.122.24:10005/health-consultation', {
+                console.log('🔗 Connecting to:', nodeRedUrl);
+                console.log('📊 Data will be forwarded to MQTT broker: mqtt.fuvitech.vn:2883');
+                console.log('💡 Web form đang chạy trên HTTP để tương thích với Node-RED');
+                
+                const response = await fetch(nodeRedUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
